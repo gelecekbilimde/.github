@@ -10,14 +10,14 @@ Gelecek Bilimde'ye katılarak, bilimi daha çok insana ulaştırma çabamıza or
 ## Teknik Yetenekler
 ## Backend Geliştirme:
 
-Java
-Spring Boot 3
-Docker
-MySQL
+* Java
+* Spring Boot 3
+* Docker
+* MySQL
 
 ## Frontend Geliştirme:
 
-React
-TypeScript
+* React
+* TypeScript
 
 Gelecek Bilimde, bilimin daha geniş kitlelere ulaşmasını sağlamak için sürekli olarak büyüyen bir topluluk. Siz de bu topluluğun bir parçası olun ve bilimin geleceğine katkıda bulunun!
