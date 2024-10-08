@@ -21,3 +21,9 @@ Gelecek Bilimde'ye katılarak, bilimi daha çok insana ulaştırma çabamıza or
 * TypeScript
 
 Gelecek Bilimde, bilimin daha geniş kitlelere ulaşmasını sağlamak için sürekli olarak büyüyen bir topluluk. Siz de bu topluluğun bir parçası olun ve bilimin geleceğine katkıda bulunun!
+
+## Ek Bilgiler
+Jira, görev dağılımımızı ve sorunlarımızı yönetmek için kullanılırken, Confluence dökümanlarımız için kullanılmaktadır. Platformlarımızı incelemek isteyenler için:
+
+* Confluence: atlassian.gelecekbilimde.net/wiki
+* Jira: atlassian.gelecekbilimde.net/jira
