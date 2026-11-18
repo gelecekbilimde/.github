@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout GitHub profile
         uses: actions/checkout@v5
 
       - name: Sync README to Codefloe
@@ -33,7 +33,7 @@ jobs:
           git add README.md
 
           if git diff --cached --quiet; then
-            echo "Already up to date."
+            echo "Codefloe profile is already up to date."
             exit 0
           fi
 
