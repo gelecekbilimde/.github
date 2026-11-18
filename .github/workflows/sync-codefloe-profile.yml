@@ -6,25 +6,69 @@ on:
       - main
     paths:
       - "profile/README.md"
+
   workflow_dispatch:
 
 jobs:
   sync:
+    name: Sync GitHub profile to Codefloe
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout GitHub profile
+      - name: Checkout GitHub organization profile
         uses: actions/checkout@v5
 
-      - name: Sync README to Codefloe
+      - name: Verify required secrets
         env:
           CODEFLOE_USER: ${{ secrets.CODEFLOE_USER }}
           CODEFLOE_TOKEN: ${{ secrets.CODEFLOE_TOKEN }}
         run: |
-          git clone "https://${CODEFLOE_USER}:${CODEFLOE_TOKEN}@codefloe.com/gelecekbilimde/.profile.git" codefloe-profile
+          if [ -z "$CODEFLOE_USER" ]; then
+            echo "ERROR: CODEFLOE_USER secret is missing."
+            exit 1
+          fi
 
+          if [ -z "$CODEFLOE_TOKEN" ]; then
+            echo "ERROR: CODEFLOE_TOKEN secret is missing."
+            exit 1
+          fi
+
+          echo "Codefloe credentials are available."
+
+      - name: Verify GitHub profile README exists
+        run: |
+          if [ ! -f "profile/README.md" ]; then
+            echo "ERROR: profile/README.md does not exist."
+            exit 1
+          fi
+
+          echo "GitHub organization README found."
+
+      - name: Clone Codefloe profile
+        env:
+          CODEFLOE_USER: ${{ secrets.CODEFLOE_USER }}
+          CODEFLOE_TOKEN: ${{ secrets.CODEFLOE_TOKEN }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
+          echo "Cloning Codefloe .profile repository..."
+
+          timeout 30s git clone \
+            "https://${CODEFLOE_USER}:${CODEFLOE_TOKEN}@codefloe.com/gelecekbilimde/.profile.git" \
+            codefloe-profile
+
+          echo "Clone completed successfully."
+
+      - name: Copy organization README
+        run: |
           cp profile/README.md codefloe-profile/README.md
+          echo "README copied."
 
+      - name: Commit and push to Codefloe
+        env:
+          CODEFLOE_USER: ${{ secrets.CODEFLOE_USER }}
+          CODEFLOE_TOKEN: ${{ secrets.CODEFLOE_TOKEN }}
+          GIT_TERMINAL_PROMPT: "0"
+        run: |
           cd codefloe-profile
 
           git config user.name "Gelecek Bilimde Sync"
@@ -33,9 +77,14 @@ jobs:
           git add README.md
 
           if git diff --cached --quiet; then
-            echo "Codefloe profile is already up to date."
+            echo "Codefloe organization profile is already up to date."
             exit 0
           fi
 
           git commit -m "Sync organization profile from GitHub"
-          git push origin main
+
+          echo "Pushing updated README to Codefloe..."
+
+          timeout 30s git push origin main
+
+          echo "Codefloe organization profile synchronized successfully."
