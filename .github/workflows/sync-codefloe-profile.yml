@@ -12,7 +12,9 @@ on:
 jobs:
   sync:
     name: Sync GitHub profile to Codefloe
-    runs-on: ubuntu-latest
+
+    # Runs on your own machine instead of GitHub's servers.
+    runs-on: self-hosted
 
     steps:
       - name: Checkout GitHub organization profile
@@ -22,65 +24,79 @@ jobs:
         env:
           CODEFLOE_TOKEN: ${{ secrets.CODEFLOE_TOKEN }}
         run: |
-          if [ -z "$CODEFLOE_TOKEN" ]; then
-            echo "ERROR: CODEFLOE_TOKEN is missing."
+          set -euo pipefail
+
+          if [ -z "${CODEFLOE_TOKEN:-}" ]; then
+            echo "ERROR: CODEFLOE_TOKEN secret is missing."
             exit 1
           fi
 
           if [ ! -f "profile/README.md" ]; then
-            echo "ERROR: profile/README.md is missing."
+            echo "ERROR: profile/README.md does not exist."
             exit 1
           fi
 
           echo "Configuration OK."
 
-      - name: Sync README using Codefloe API
+      - name: Sync README to Codefloe
         env:
           CODEFLOE_TOKEN: ${{ secrets.CODEFLOE_TOKEN }}
         run: |
           set -euo pipefail
 
           API="https://codefloe.com/api/v1"
-          REPO="gelecekbilimde/.profile"
+          OWNER="gelecekbilimde"
+          REPO=".profile"
           FILE="README.md"
 
-          echo "Getting current README information..."
+          echo "Reading current Codefloe README..."
 
-          RESPONSE=$(curl --fail --silent --show-error \
-            --max-time 30 \
+          RESPONSE=$(curl \
+            --fail \
+            --silent \
+            --show-error \
+            --connect-timeout 15 \
+            --max-time 60 \
             -H "Authorization: token ${CODEFLOE_TOKEN}" \
             -H "Accept: application/json" \
-            "${API}/repos/${REPO}/contents/${FILE}")
+            "${API}/repos/${OWNER}/${REPO}/contents/${FILE}")
 
-          SHA=$(echo "$RESPONSE" | jq -r '.sha')
+          SHA=$(printf '%s' "$RESPONSE" | jq -r '.sha')
 
           if [ -z "$SHA" ] || [ "$SHA" = "null" ]; then
-            echo "ERROR: Could not determine current README SHA."
+            echo "ERROR: Could not get the SHA of the Codefloe README."
             exit 1
           fi
 
-          echo "Encoding GitHub organization README..."
+          echo "Current README SHA: ${SHA}"
+
+          echo "Encoding GitHub README..."
 
           CONTENT=$(base64 -w 0 profile/README.md)
 
           PAYLOAD=$(jq -n \
             --arg content "$CONTENT" \
             --arg sha "$SHA" \
+            --arg message "Sync organization profile from GitHub" \
             '{
               content: $content,
               sha: $sha,
-              message: "Sync organization profile from GitHub"
+              message: $message
             }')
 
-          echo "Updating Codefloe organization README..."
+          echo "Updating Codefloe README..."
 
-          curl --fail --silent --show-error \
-            --max-time 30 \
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --connect-timeout 15 \
+            --max-time 60 \
             -X PUT \
             -H "Authorization: token ${CODEFLOE_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD" \
-            "${API}/repos/${REPO}/contents/${FILE}"
+            "${API}/repos/${OWNER}/${REPO}/contents/${FILE}"
 
           echo
-          echo "Codefloe organization profile synchronized successfully."
+          echo "SUCCESS: Codefloe organization profile synchronized."
