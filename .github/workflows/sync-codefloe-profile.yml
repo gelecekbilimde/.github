@@ -18,73 +18,69 @@ jobs:
       - name: Checkout GitHub organization profile
         uses: actions/checkout@v5
 
-      - name: Verify required secrets
+      - name: Verify configuration
         env:
-          CODEFLOE_USER: ${{ secrets.CODEFLOE_USER }}
           CODEFLOE_TOKEN: ${{ secrets.CODEFLOE_TOKEN }}
         run: |
-          if [ -z "$CODEFLOE_USER" ]; then
-            echo "ERROR: CODEFLOE_USER secret is missing."
-            exit 1
-          fi
-
           if [ -z "$CODEFLOE_TOKEN" ]; then
-            echo "ERROR: CODEFLOE_TOKEN secret is missing."
+            echo "ERROR: CODEFLOE_TOKEN is missing."
             exit 1
           fi
 
-          echo "Codefloe credentials are available."
-
-      - name: Verify GitHub profile README exists
-        run: |
           if [ ! -f "profile/README.md" ]; then
-            echo "ERROR: profile/README.md does not exist."
+            echo "ERROR: profile/README.md is missing."
             exit 1
           fi
 
-          echo "GitHub organization README found."
+          echo "Configuration OK."
 
-      - name: Clone Codefloe profile
+      - name: Sync README using Codefloe API
         env:
-          CODEFLOE_USER: ${{ secrets.CODEFLOE_USER }}
           CODEFLOE_TOKEN: ${{ secrets.CODEFLOE_TOKEN }}
-          GIT_TERMINAL_PROMPT: "0"
         run: |
-          echo "Cloning Codefloe .profile repository..."
+          set -euo pipefail
 
-          timeout 30s git clone \
-            "https://${CODEFLOE_USER}:${CODEFLOE_TOKEN}@codefloe.com/gelecekbilimde/.profile.git" \
-            codefloe-profile
+          API="https://codefloe.com/api/v1"
+          REPO="gelecekbilimde/.profile"
+          FILE="README.md"
 
-          echo "Clone completed successfully."
+          echo "Getting current README information..."
 
-      - name: Copy organization README
-        run: |
-          cp profile/README.md codefloe-profile/README.md
-          echo "README copied."
+          RESPONSE=$(curl --fail --silent --show-error \
+            --max-time 30 \
+            -H "Authorization: token ${CODEFLOE_TOKEN}" \
+            -H "Accept: application/json" \
+            "${API}/repos/${REPO}/contents/${FILE}")
 
-      - name: Commit and push to Codefloe
-        env:
-          CODEFLOE_USER: ${{ secrets.CODEFLOE_USER }}
-          CODEFLOE_TOKEN: ${{ secrets.CODEFLOE_TOKEN }}
-          GIT_TERMINAL_PROMPT: "0"
-        run: |
-          cd codefloe-profile
+          SHA=$(echo "$RESPONSE" | jq -r '.sha')
 
-          git config user.name "Gelecek Bilimde Sync"
-          git config user.email "github-actions@users.noreply.github.com"
-
-          git add README.md
-
-          if git diff --cached --quiet; then
-            echo "Codefloe organization profile is already up to date."
-            exit 0
+          if [ -z "$SHA" ] || [ "$SHA" = "null" ]; then
+            echo "ERROR: Could not determine current README SHA."
+            exit 1
           fi
 
-          git commit -m "Sync organization profile from GitHub"
+          echo "Encoding GitHub organization README..."
 
-          echo "Pushing updated README to Codefloe..."
+          CONTENT=$(base64 -w 0 profile/README.md)
 
-          timeout 30s git push origin main
+          PAYLOAD=$(jq -n \
+            --arg content "$CONTENT" \
+            --arg sha "$SHA" \
+            '{
+              content: $content,
+              sha: $sha,
+              message: "Sync organization profile from GitHub"
+            }')
 
+          echo "Updating Codefloe organization README..."
+
+          curl --fail --silent --show-error \
+            --max-time 30 \
+            -X PUT \
+            -H "Authorization: token ${CODEFLOE_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "${API}/repos/${REPO}/contents/${FILE}"
+
+          echo
           echo "Codefloe organization profile synchronized successfully."
